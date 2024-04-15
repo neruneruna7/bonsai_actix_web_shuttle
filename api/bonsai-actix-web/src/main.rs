@@ -1,4 +1,7 @@
-use actix_web::{get, web::{self, ServiceConfig}};
+use actix_web::{
+    get,
+    web::{self, ServiceConfig},
+};
 use actix_web_lab::middleware::from_fn;
 use shuttle_actix_web::ShuttleActixWeb;
 
@@ -18,7 +21,7 @@ async fn main() -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clon
         cfg.service(
             web::scope("")
                 .wrap(from_fn(device_os_handler))
-                .service(hello_world)
+                .service(hello_world),
         );
     };
     Ok(config.into())
