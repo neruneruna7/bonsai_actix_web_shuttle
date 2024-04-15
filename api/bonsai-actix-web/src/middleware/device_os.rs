@@ -1,88 +1,111 @@
-use std::{
-    future::{ready, Future, Ready},
-    pin::Pin,
-};
-
 use actix_web::{
     body::MessageBody,
-    dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
-    web::ServiceConfig,
+    dev::{Service, ServiceRequest, ServiceResponse},
     Error, HttpMessage,
 };
 use actix_web_lab::middleware::Next;
+
+#[derive(Debug)]
+pub struct DeviceOs {
+    name: String,
+}
+
+impl DeviceOs {
+    pub fn new(name: String) -> Self {
+        Self { name }
+    }
+}
 
 pub async fn device_os_handler(
     req: ServiceRequest,
     next: Next<impl MessageBody>,
 ) -> Result<ServiceResponse<impl MessageBody>, Error> {
     println!("start device_os_handler");
-    // ユーザーエージェントを取得
-    let user_agent = req.headers().get("User-Agent").unwrap().to_str().unwrap();
-    println!("User-Agent: {}", user_agent);
+
+    {
+        // ユーザーエージェントを取得
+        let user_agent = req
+            .headers()
+            .get("User-Agent")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+        // UAを保存
+        let device_os = DeviceOs::new(user_agent);
+
+        let _a = req.extensions_mut().insert(device_os);
+        let a = req.extensions();
+        let a = a.get::<DeviceOs>();
+        // a.insert("device_os");
+        println!("AppConfig: {:?}", a);
+    }
+
     let res = next.call(req).await?;
     println!("end device_os_handler");
     Ok(res)
 }
 
-// actix_web_lab無しで実装
+// // actix_web_lab無しで実装
+// // できなかった
 
-pub struct DeviceOs;
+// pub struct DeviceOs;
 
-impl<S, B> Transform<S, ServiceConfig> for DeviceOs
-where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
-    S::Future: 'static,
-    B: 'static,
-{
-    type Response = ServiceResponse<B>;
-    type Error = Error;
-    type Transform = DeviceOsMiddleware<S>;
-    type InitError = ();
-    type Future = Ready<Result<Self::Transform, Self::InitError>>;
+// impl<S, B> Transform<S, ServiceConfig> for DeviceOs
+// where
+//     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
+//     S::Future: 'static,
+//     B: 'static,
+// {
+//     type Response = ServiceResponse<B>;
+//     type Error = Error;
+//     type Transform = DeviceOsMiddleware<S>;
+//     type InitError = ();
+//     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
-    fn new_transform(&self, service: S) -> Self::Future {
-        ready(Ok(DeviceOsMiddleware { service }))
-    }
-}
+//     fn new_transform(&self, service: S) -> Self::Future {
+//         ready(Ok(DeviceOsMiddleware { service }))
+//     }
+// }
 
-pub struct DeviceOsMiddleware<S> {
-    service: S,
-}
-// This future doesn't have the requirement of being `Send`.
-// See: futures_util::future::LocalBoxFuture
-type LocalBoxFuture<T> = Pin<Box<dyn Future<Output = T> + 'static>>;
+// pub struct DeviceOsMiddleware<S> {
+//     service: S,
+// }
+// // This future doesn't have the requirement of being `Send`.
+// // See: futures_util::future::LocalBoxFuture
+// type LocalBoxFuture<T> = Pin<Box<dyn Future<Output = T> + 'static>>;
 
-// `S`: type of the wrapped service
-// `B`: type of the body - try to be generic over the body where possible
-impl<S, B> Service<ServiceRequest> for DeviceOsMiddleware<S>
-where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
-    S::Future: 'static,
-    B: 'static,
-{
-    type Response = ServiceResponse<B>;
-    type Error = Error;
-    type Future = LocalBoxFuture<Result<Self::Response, Self::Error>>;
+// // `S`: type of the wrapped service
+// // `B`: type of the body - try to be generic over the body where possible
+// impl<S, B> Service<ServiceRequest> for DeviceOsMiddleware<S>
+// where
+//     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
+//     S::Future: 'static,
+//     B: 'static,
+// {
+//     type Response = ServiceResponse<B>;
+//     type Error = Error;
+//     type Future = LocalBoxFuture<Result<Self::Response, Self::Error>>;
 
-    // This service is ready when its next service is ready
-    forward_ready!(service);
+//     // This service is ready when its next service is ready
+//     forward_ready!(service);
 
-    fn call(&self, req: ServiceRequest) -> Self::Future {
-        println!("Hi from start. You requested: {}", req.path());
+//     fn call(&self, req: ServiceRequest) -> Self::Future {
+//         println!("Hi from start. You requested: {}", req.path());
 
-        // A more complex middleware, could return an error or an early response here.
+//         // A more complex middleware, could return an error or an early response here.
 
-        // we do not immediately await this, which means nothing happens
-        // this future gets moved into a Box
-        let fut = self.service.call(req);
+//         // we do not immediately await this, which means nothing happens
+//         // this future gets moved into a Box
+//         let fut = self.service.call(req);
 
-        Box::pin(async move {
-            // this future gets awaited now
-            let res = fut.await?;
+//         Box::pin(async move {
+//             // this future gets awaited now
+//             let res = fut.await?;
 
-            // we can now do any work we need to after the request
-            println!("Hi from response");
-            Ok(res)
-        })
-    }
-}
+//             // we can now do any work we need to after the request
+//             println!("Hi from response");
+//             Ok(res)
+//         })
+//     }
+// }
