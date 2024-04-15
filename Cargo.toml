@@ -3,3 +3,6 @@ resolver = "2"
 members = [
     "api/bonsai-actix-web",
 ]
+
+[profile.dev]
+debug = 0
