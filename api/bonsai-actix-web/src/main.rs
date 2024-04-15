@@ -7,7 +7,10 @@ use shuttle_actix_web::ShuttleActixWeb;
 
 mod middleware;
 
-use middleware::device_os::device_os_handler;
+use middleware::{
+    device_os::device_os_handler,
+    say_hi::SayHi,
+};
 
 #[get("/")]
 async fn hello_world() -> &'static str {
@@ -21,6 +24,7 @@ async fn main() -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clon
         cfg.service(
             web::scope("")
                 .wrap(from_fn(device_os_handler))
+                .wrap(SayHi)
                 .service(hello_world),
         );
     };
