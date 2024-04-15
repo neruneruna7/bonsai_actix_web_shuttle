@@ -1,6 +1,6 @@
 use actix_web::{
     body::MessageBody,
-    dev::{Service, ServiceRequest, ServiceResponse},
+    dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
     Error, HttpMessage,
 };
 use actix_web_lab::middleware::Next;
@@ -46,66 +46,74 @@ pub async fn device_os_handler(
     Ok(res)
 }
 
-// // actix_web_lab無しで実装
-// // できなかった
+// actix_web_lab無しで実装
+// できなかった
 
-// pub struct DeviceOs;
+use std::{future::{ready, Ready, Future}, pin::Pin};
 
-// impl<S, B> Transform<S, ServiceConfig> for DeviceOs
-// where
-//     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
-//     S::Future: 'static,
-//     B: 'static,
-// {
-//     type Response = ServiceResponse<B>;
-//     type Error = Error;
-//     type Transform = DeviceOsMiddleware<S>;
-//     type InitError = ();
-//     type Future = Ready<Result<Self::Transform, Self::InitError>>;
+pub struct CaptureOs;
 
-//     fn new_transform(&self, service: S) -> Self::Future {
-//         ready(Ok(DeviceOsMiddleware { service }))
-//     }
-// }
+// `S` - type of the next service
+// `B` - type of response's body
+impl<S, B> Transform<S, ServiceRequest> for CaptureOs
+where
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
+    S::Future: 'static,
+    B: 'static,
+{
+    // setting up the types for the middleware to work
+    type Response = ServiceResponse<B>;
+    type Error = Error;
+    type InitError = ();
+    type Transform = CaptureOsMiddleware<S>;
+    type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
-// pub struct DeviceOsMiddleware<S> {
-//     service: S,
-// }
-// // This future doesn't have the requirement of being `Send`.
-// // See: futures_util::future::LocalBoxFuture
-// type LocalBoxFuture<T> = Pin<Box<dyn Future<Output = T> + 'static>>;
+    // this immediately returns the middleware
+    fn new_transform(&self, service: S) -> Self::Future {
+        ready(Ok(CaptureOsMiddleware { service }))
+    }
+}
 
-// // `S`: type of the wrapped service
-// // `B`: type of the body - try to be generic over the body where possible
-// impl<S, B> Service<ServiceRequest> for DeviceOsMiddleware<S>
-// where
-//     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
-//     S::Future: 'static,
-//     B: 'static,
-// {
-//     type Response = ServiceResponse<B>;
-//     type Error = Error;
-//     type Future = LocalBoxFuture<Result<Self::Response, Self::Error>>;
+pub struct CaptureOsMiddleware<S> {
+    /// The next service to call
+    service: S,
+}
 
-//     // This service is ready when its next service is ready
-//     forward_ready!(service);
+// This future doesn't have the requirement of being `Send`.
+// See: futures_util::future::LocalBoxFuture
+type LocalBoxFuture<T> = Pin<Box<dyn Future<Output = T> + 'static>>;
 
-//     fn call(&self, req: ServiceRequest) -> Self::Future {
-//         println!("Hi from start. You requested: {}", req.path());
+// `S`: type of the wrapped service
+// `B`: type of the body - try to be generic over the body where possible
+impl<S, B> Service<ServiceRequest> for CaptureOsMiddleware<S>
+where
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
+    S::Future: 'static,
+    B: 'static,
+{
+    type Response = ServiceResponse<B>;
+    type Error = Error;
+    type Future = LocalBoxFuture<Result<Self::Response, Self::Error>>;
 
-//         // A more complex middleware, could return an error or an early response here.
+    // This service is ready when its next service is ready
+    forward_ready!(service);
 
-//         // we do not immediately await this, which means nothing happens
-//         // this future gets moved into a Box
-//         let fut = self.service.call(req);
+    fn call(&self, req: ServiceRequest) -> Self::Future {
+        println!("Capture OS. You requested: {}", req.path());
 
-//         Box::pin(async move {
-//             // this future gets awaited now
-//             let res = fut.await?;
+        // A more complex middleware, could return an error or an early response here.
 
-//             // we can now do any work we need to after the request
-//             println!("Hi from response");
-//             Ok(res)
-//         })
-//     }
-// }
+        // we do not immediately await this, which means nothing happens
+        // this future gets moved into a Box
+        let fut = self.service.call(req);
+
+        Box::pin(async move {
+            // this future gets awaited now
+            let res = fut.await?;
+
+            // we can now do any work we need to after the request
+            println!("Capture from response");
+            Ok(res)
+        })
+    }
+}
