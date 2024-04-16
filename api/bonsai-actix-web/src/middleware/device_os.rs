@@ -81,7 +81,7 @@ where
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct CaptureOsMiddleware<S> {
     /// The next service to call
     service: S,
@@ -114,7 +114,10 @@ where
         // instrumentマクロで，nameでスパン名を指定することで対策は可能
 
         // A more complex middleware, could return an error or an early response here.
+        // 複雑なミドルウェアの場合，ここでエラーを返したり早期リターンをすることができる
 
+        // スコープを切ることで，reqへの参照をもつ変数を破棄している
+        // 後続のcallに渡すときに，参照をもった変数がいると生存期間の関係でエラーがでる
         let ua = {
             // ユーザーエージェントを取得
             let user_agent = req
@@ -138,13 +141,17 @@ where
 
 
 
+
         // we do not immediately await this, which means nothing happens
         // this future gets moved into a Box
         let fut = self.service.call(req);
 
         info!("Capture OS middlerare Finish");
         Box::pin(async move {
+            // 実行される時間軸としては，Goのミドルウェアでのクロージャ内に相当すると思われる
+            // ここの中ではreqをとれないので，クロージャ外で処理してから，クロージャ内にmoveしてあれこれが良さげ？
             info!("Closure start Capture from response, UA = {:?}\n", ua);
+        
 
             // this future gets awaited now
             let res = fut.await?;
