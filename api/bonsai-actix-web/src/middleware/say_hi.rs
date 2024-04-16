@@ -4,8 +4,7 @@ use std::{
 };
 
 use actix_web::{
-    dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
-    web, Error,
+    dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform}, Error,
 };
 
 use tracing::{instrument, info};

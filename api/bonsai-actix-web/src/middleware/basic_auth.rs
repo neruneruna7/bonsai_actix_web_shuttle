@@ -1,8 +1,8 @@
 use actix_web::{
-    body::MessageBody, dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform}, http::{ StatusCode},  HttpMessage, HttpResponse, ResponseError
+    dev::ServiceRequest, http::StatusCode,  HttpResponse, ResponseError
 };
 use actix_web_httpauth::extractors::basic::BasicAuth;
-use actix_web_lab::middleware::Next;
+
 use serde_json::json;
 use thiserror::Error;
 use tracing::{instrument, info};
@@ -39,7 +39,6 @@ impl ResponseError for RuntimeError {
 
         match self {
             RuntimeError::InvalidCredential => S::BAD_REQUEST,
-            _ => S::INTERNAL_SERVER_ERROR,
         }
 
     }

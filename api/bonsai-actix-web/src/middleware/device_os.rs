@@ -7,6 +7,7 @@ use actix_web_lab::middleware::Next;
 use tracing::{instrument, info};
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct DeviceOs {
     name: String,
 }

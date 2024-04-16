@@ -3,14 +3,14 @@ use actix_web::{
     web::{self, ServiceConfig},
 };
 use actix_web_httpauth::middleware::HttpAuthentication;
-use actix_web_lab::middleware::from_fn;
+
 use shuttle_actix_web::ShuttleActixWeb;
 
 mod middleware;
 mod errors;
 
 use middleware::{
-    basic_auth::{basic_auth_validator}, device_os::{device_os_handler, CaptureOs}, say_hi::SayHi
+    basic_auth::basic_auth_validator, device_os::CaptureOs, say_hi::SayHi
 };
 
 #[get("/")]
