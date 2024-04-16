@@ -1,4 +1,7 @@
-use std::{future::{ready, Ready, Future}, pin::Pin};
+use std::{
+    future::{ready, Future, Ready},
+    pin::Pin,
+};
 
 use actix_web::{
     dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},

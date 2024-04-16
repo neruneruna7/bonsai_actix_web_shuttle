@@ -13,8 +13,9 @@ use middleware::{
 };
 
 #[get("/")]
+#[tracing::instrument]
 async fn hello_world() -> &'static str {
-    println!("hello_world");
+    tracing::info!("hello_world");
     "Hello World!"
 }
 

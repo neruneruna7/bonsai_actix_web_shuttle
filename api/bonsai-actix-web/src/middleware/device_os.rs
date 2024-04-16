@@ -4,8 +4,9 @@ use actix_web::{
     Error, HttpMessage,
 };
 use actix_web_lab::middleware::Next;
+use tracing::{instrument, info};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DeviceOs {
     name: String,
 }
@@ -16,11 +17,13 @@ impl DeviceOs {
     }
 }
 
+
+#[instrument(skip(req, next))]
 pub async fn device_os_handler(
     req: ServiceRequest,
     next: Next<impl MessageBody>,
 ) -> Result<ServiceResponse<impl MessageBody>, Error> {
-    println!("start device_os_handler");
+    info!("start device_os_handler");
 
     {
         // ユーザーエージェントを取得
@@ -38,18 +41,22 @@ pub async fn device_os_handler(
         let a = req.extensions();
         let a = a.get::<DeviceOs>();
         // a.insert("device_os");
-        println!("AppConfig: {:?}", a);
+        info!("lab capture os{:?}", a)
+
     }
 
     let res = next.call(req).await?;
-    println!("end device_os_handler");
+    info!("end device_os_handler");
     Ok(res)
 }
 
 // actix_web_lab無しで実装
 // できなかった
 
-use std::{future::{ready, Ready, Future}, pin::Pin};
+use std::{
+    future::{ready, Future, Ready},
+    pin::Pin,
+};
 
 pub struct CaptureOs;
 
@@ -74,6 +81,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct CaptureOsMiddleware<S> {
     /// The next service to call
     service: S,
@@ -99,7 +107,27 @@ where
     forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        println!("Capture OS. You requested: {}", req.path());
+        println!("Capture OS middlerare Start");
+
+        let ua = {
+            // ユーザーエージェントを取得
+            let user_agent = req
+                .headers()
+                .get("User-Agent")
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string();
+            // UAを保存
+            let device_os = DeviceOs::new(user_agent);
+    
+            let _ = req.extensions_mut().insert(device_os);
+
+            let ext = req.extensions();
+            let ua = ext.get::<DeviceOs>();
+            ua.unwrap().clone()
+        };
+
 
         // A more complex middleware, could return an error or an early response here.
 
@@ -107,12 +135,17 @@ where
         // this future gets moved into a Box
         let fut = self.service.call(req);
 
+        println!("Capture OS middlerare Finish");
         Box::pin(async move {
             // this future gets awaited now
             let res = fut.await?;
 
             // we can now do any work we need to after the request
-            println!("Capture from response");
+
+            // 多分，パニックハンドラの場合，回復処理とかはここに書くのだと思う
+            // futをawaitで待った後に実行される
+            // すなわち，Goでいうdeferに書いた関数と同じタイミングで実行されると考えられる
+            println!("Capture from response, UA = {:?}\n", ua);
             Ok(res)
         })
     }
