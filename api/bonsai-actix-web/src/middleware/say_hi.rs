@@ -8,6 +8,9 @@ use actix_web::{
     web, Error,
 };
 
+use tracing::{instrument, info};
+
+
 pub struct SayHi;
 
 // `S` - type of the next service
@@ -55,8 +58,9 @@ where
     // This service is ready when its next service is ready
     forward_ready!(service);
 
+    #[instrument(skip(self, req), name="say_hi")]
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        println!("Hi from start. You requested: {}", req.path());
+        info!("Hi from start. You requested: {}", req.path());
 
         // A more complex middleware, could return an error or an early response here.
 
@@ -69,7 +73,7 @@ where
             let res = fut.await?;
 
             // we can now do any work we need to after the request
-            println!("Hi from response");
+            info!("Hi from response");
             Ok(res)
         })
     }

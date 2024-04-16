@@ -106,8 +106,14 @@ where
     // This service is ready when its next service is ready
     forward_ready!(service);
 
+    #[instrument(skip(self, req), name="capture_os")]
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        println!("Capture OS middlerare Start");
+        info!("Capture OS middlerare Start");
+        // spanの名前がcallにになってしまい，どのミドルウェアの中なのか分からない問題
+        // せっかく構造化したロギングができるのに，その意味が薄れてしまう
+        // instrumentマクロで，nameでスパン名を指定することで対策は可能
+
+        // A more complex middleware, could return an error or an early response here.
 
         let ua = {
             // ユーザーエージェントを取得
@@ -125,27 +131,31 @@ where
 
             let ext = req.extensions();
             let ua = ext.get::<DeviceOs>();
+            info!("Capture from response, UA = {:?}", ua);
+
             ua.unwrap().clone()
         };
 
 
-        // A more complex middleware, could return an error or an early response here.
 
         // we do not immediately await this, which means nothing happens
         // this future gets moved into a Box
         let fut = self.service.call(req);
 
-        println!("Capture OS middlerare Finish");
+        info!("Capture OS middlerare Finish");
         Box::pin(async move {
+            info!("Closure start Capture from response, UA = {:?}\n", ua);
+
             // this future gets awaited now
             let res = fut.await?;
 
             // we can now do any work we need to after the request
 
-            // 多分，パニックハンドラの場合，回復処理とかはここに書くのだと思う
+            // ~~多分，パニックハンドラの場合，回復処理とかはここに書くのだと思う
             // futをawaitで待った後に実行される
-            // すなわち，Goでいうdeferに書いた関数と同じタイミングで実行されると考えられる
-            println!("Capture from response, UA = {:?}\n", ua);
+            // すなわち，Goでいうdeferに書いた関数と同じタイミングで実行されると考えられる~~
+            // 違うな，ServeHttpを呼んだあとの部分に相当する
+            info!("Closure end Capture from response, UA = {:?}\n", ua);
             Ok(res)
         })
     }
